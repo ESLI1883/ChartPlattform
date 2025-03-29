@@ -1,20 +1,97 @@
-import logo from './logo.svg';
+import { useState, useEffect } from 'react';
 import './App.css';
 import Chart from './components/Chart';
-
-// Dummy-Daten (1 Tag, 5-min-Kerzen)
-const dummyData = [
-  { time: '2025-03-29 09:00', open: 100, high: 102, low: 99, close: 101 },
-  { time: '2025-03-29 09:05', open: 101, high: 103, low: 100, close: 102 },
-  { time: '2025-03-29 09:10', open: 102, high: 104, low: 101, close: 103 },
-  { time: '2025-03-29 09:15', open: 103, high: 105, low: 102, close: 104 },
-];
+import MarketFactory from './market/MarketFactory';
+import SymbolSearch from './components/SymbolSearch'; // Neue Komponente importieren
 
 function App() {
+  const [marketType, setMarketType] = useState('stock');
+  const [symbol, setSymbol] = useState('AAPL');
+  const [data, setData] = useState([]);
+  const [error, setError] = useState(null);
+  const [showSymbolSearch, setShowSymbolSearch] = useState(false); // Zustand für Symbol-Suchansicht
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setError(null);
+        const chartData = await MarketFactory.fetchMarketData(
+          marketType,
+          symbol
+        );
+        if (chartData.length === 0) {
+          setError('Keine Daten verfügbar für ' + symbol);
+        }
+        setData(chartData);
+      } catch (err) {
+        setError('Fehler beim Laden der Daten: ' + err.message);
+      }
+    };
+    loadData();
+  }, [marketType, symbol]);
+
+  // Handler für Symbolauswahl
+  const handleSymbolSelect = (newSymbol, newMarketType) => {
+    setSymbol(newSymbol);
+    setMarketType(newMarketType); // Markt basierend auf Symbol ändern
+    setShowSymbolSearch(false); // Suche schließen
+  };
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>Market Simulation</h1>
-      <Chart data={dummyData} />
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ marginRight: '10px' }}>Markt: </label>
+        <select
+          value={marketType}
+          onChange={(e) => setMarketType(e.target.value)}
+        >
+          <option value="stock">Aktien</option>
+          <option value="forex">Forex</option>
+          <option value="crypto">Krypto</option>
+        </select>
+      </div>
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ marginRight: '10px' }}>Symbol: </label>
+        {marketType === 'stock' && (
+          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+            <option value="AAPL">Apple (AAPL)</option>
+            <option value="MSFT">Microsoft (MSFT)</option>
+            <option value="GOOGL">Google (GOOGL)</option>
+          </select>
+        )}
+        {marketType === 'forex' && (
+          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+            <option value="EURUSD">EUR/USD</option>
+            <option value="GBPUSD">GBP/USD</option>
+          </select>
+        )}
+        {marketType === 'crypto' && (
+          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+            <option value="BTC">Bitcoin (BTC)</option>
+            <option value="ETH">Ethereum (ETH)</option>
+          </select>
+        )}
+        <button
+          onClick={() => setShowSymbolSearch(true)}
+          style={{ marginLeft: '10px', padding: '5px 10px' }}
+        >
+          Symbol Suche
+        </button>
+      </div>
+      {showSymbolSearch && (
+        <div
+          style={{ position: 'fixed', top: '20%', left: '20%', zIndex: 1000 }}
+        >
+          <SymbolSearch
+            onSymbolSelect={handleSymbolSelect}
+            currentMarketType={marketType}
+            onClose={() => setShowSymbolSearch(false)} // Schließen-Handler
+          />
+        </div>
+      )}
+      <Chart data={data} />
     </div>
   );
 }

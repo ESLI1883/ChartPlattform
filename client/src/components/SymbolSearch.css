@@ -1,0 +1,80 @@
+/* client/src/components/SymbolSearch.css */
+.symbol-search {
+    padding: 10px;
+    background-color: #1a1a1a;
+    color: white;
+    border-radius: 5px;
+    width: 300px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  }
+  
+  .symbol-search h3 {
+    margin: 0 0 10px;
+  }
+  
+  .symbol-search input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    background-color: #333;
+    border: none;
+    color: white;
+  }
+  
+  .categories {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  
+  .categories button {
+    padding: 5px 10px;
+    background-color: #444;
+    border: none;
+    color: white;
+    cursor: pointer;
+  }
+  
+  .categories button.active {
+    background-color: #666;
+  }
+  
+  .symbol-list {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .symbol-item {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    cursor: pointer;
+  }
+  
+  .symbol-item:hover {
+    background-color: #333;
+  }
+  
+  .symbol-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+  }
+  
+  .symbol-info {
+    flex: 1;
+  }
+  
+  .symbol {
+    font-weight: bold;
+  }
+  
+  .description {
+    font-size: 0.9em;
+    color: #aaa;
+  }
+  
+  .source {
+    font-size: 0.8em;
+    color: #888;
+  }

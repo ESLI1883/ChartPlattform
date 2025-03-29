@@ -1,22 +1,30 @@
-import { createChart } from 'lightweight-charts';
+import { createChart, CandlestickSeries } from 'lightweight-charts';
 import { useEffect, useRef } from 'react';
 
 const Chart = ({ data }) => {
   const chartContainerRef = useRef();
 
   useEffect(() => {
-    // Erstelle das Chart
     const chart = createChart(chartContainerRef.current, {
-      width: 800,
-      height: 400,
+      width: 1400,
+      height: 600,
+      layout: {
+        background: { color: '#ffffff' },
+        textColor: '#333',
+      },
       timeScale: { timeVisible: true, secondsVisible: false },
     });
 
-    // Füge Candlestick-Serie hinzu
-    const candlestickSeries = chart.addCandlestickSeries();
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+    });
+
     candlestickSeries.setData(data);
 
-    // Cleanup beim Unmount
     return () => chart.remove();
   }, [data]);
 
