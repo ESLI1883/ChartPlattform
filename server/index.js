@@ -8,6 +8,8 @@ app.use(cors());
 
 app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
   const { marketType, symbol } = req.params;
+  const { timeframe } = req.query;
+
   try {
     let query;
     if (marketType === 'stock') {
@@ -22,26 +24,56 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
 
     console.log(`Abfrage für Symbol: ${query}`);
 
-    // Berechne period1 (10 Tage zurück)
-    const period1 = new Date();
-    period1.setDate(period1.getDate() - 10);
+    let interval;
+    switch (timeframe) {
+      case 'D1':
+        interval = '1d';
+        break;
+      case 'W1':
+        interval = '1wk';
+        break;
+      case 'MN':
+        interval = '1mo';
+        break;
+      default:
+        interval = '1d';
+    }
+
+    // Maximaler Zeitraum: Setze period1 auf ein sehr frühes Datum (1. Januar 1970)
+    const period1 = new Date('1970-01-01');
 
     const response = await yahooFinance.historical(query, {
-      period1: period1, // Datum 10 Tage zurück
-      interval: '1d',
+      period1: period1,
+      interval: interval,
     });
 
     console.log('Rohdaten von Yahoo Finance:', response);
 
     const chartData = response.map((entry) => ({
-      time: new Date(entry.date).toISOString().slice(0, 10),
+      time: Math.floor(new Date(entry.date).getTime() / 1000),
       open: entry.open,
       high: entry.high,
       low: entry.low,
       close: entry.close,
     }));
 
-    chartData.sort((a, b) => new Date(a.time) - new Date(b.time));
+    if (marketType === 'forex') {
+      chartData.forEach((d) => {
+        d.open = Number(d.open.toFixed(5));
+        d.high = Number(d.high.toFixed(5));
+        d.low = Number(d.low.toFixed(5));
+        d.close = Number(d.close.toFixed(5));
+      });
+    } else if (marketType === 'crypto') {
+      chartData.forEach((d) => {
+        d.open = Number(d.open.toFixed(8));
+        d.high = Number(d.high.toFixed(8));
+        d.low = Number(d.low.toFixed(8));
+        d.close = Number(d.close.toFixed(8));
+      });
+    }
+
+    chartData.sort((a, b) => a.time - b.time);
     res.json(chartData);
   } catch (error) {
     console.error('Fehler beim Abrufen der Daten:', error.message);

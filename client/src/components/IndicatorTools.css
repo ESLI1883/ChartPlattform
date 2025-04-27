@@ -1,0 +1,66 @@
+.indicator-tools {
+    position: fixed;
+    left: 70px; /* Rechts von der Zeichentools-Leiste */
+    top: 100px;
+    background-color: #1a1a1a;
+    border-radius: 5px;
+    padding: 10px;
+  }
+  
+  .indicator-tools button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 10px;
+    width: 50px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .indicator-tools button:hover {
+    background-color: #666;
+  }
+  
+  .indicator-menu {
+    position: absolute;
+    left: 60px;
+    top: 0;
+    background-color: #333;
+    border-radius: 5px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 1000;
+  }
+  
+  .indicator-menu div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .indicator-menu label {
+    color: white;
+  }
+  
+  .indicator-menu input[type="number"],
+  .indicator-menu input[type="color"] {
+    width: 60px;
+  }
+  
+  .indicator-menu button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+  }
+  
+  .indicator-menu button:hover {
+    background-color: #666;
+  }

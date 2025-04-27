@@ -1,0 +1,58 @@
+.drawing-tools {
+    position: fixed;
+    left: 10px;
+    top: 100px;
+    background-color: #1a1a1a;
+    border-radius: 5px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .tool-category {
+    position: relative;
+  }
+  
+  .tool-category button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 10px;
+    width: 50px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .tool-category button:hover {
+    background-color: #666;
+  }
+  
+  .sub-tools {
+    position: absolute;
+    left: 60px;
+    top: 0;
+    background-color: #333;
+    border-radius: 5px;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 1000;
+  }
+  
+  .sub-tools button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+  }
+  
+  .sub-tools button:hover {
+    background-color: #666;
+  }
