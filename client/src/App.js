@@ -7,8 +7,8 @@ import DrawingTools from './components/DrawingTools';
 import IndicatorTools from './components/IndicatorTools';
 
 function App() {
-  const [marketType, setMarketType] = useState('stock');
-  const [symbol, setSymbol] = useState('AAPL');
+  const [marketType, setMarketType] = useState('forex');
+  const [symbol, setSymbol] = useState('EURUSD');
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
   const [showSymbolSearch, setShowSymbolSearch] = useState(false);
@@ -22,11 +22,12 @@ function App() {
         setError(null);
         setTimeframeWarning(null);
 
-        const supportedTimeframes = ['D1', 'W1', 'MN'];
+        const supportedTimeframes = ['M15', 'H1', 'H4', 'D1', 'W1', 'MN'];
         if (!supportedTimeframes.includes(timeframe)) {
           setTimeframeWarning(
-            `Timeframe ${timeframe} wird von Yahoo Finance nicht unterstützt. Fallback auf Daily (D1).`
+            `Timeframe ${timeframe} wird nicht unterstützt. Fallback auf Daily (D1).`
           );
+          setTimeframe('D1');
         }
 
         const chartData = await MarketFactory.fetchMarketData(
@@ -63,7 +64,7 @@ function App() {
     // Diese Funktion wird an Chart weitergegeben
   };
 
-  const timeframes = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1', 'MN'];
+  const timeframes = ['M15', 'H1', 'H4', 'D1', 'W1', 'MN'];
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
@@ -78,30 +79,25 @@ function App() {
           value={marketType}
           onChange={(e) => setMarketType(e.target.value)}
         >
-          <option value="stock">Aktien</option>
           <option value="forex">Forex</option>
-          <option value="crypto">Krypto</option>
+          <option value="commodities">Rohstoffe</option>
         </select>
       </div>
       <div style={{ marginBottom: '20px' }}>
         <label style={{ marginRight: '10px' }}>Symbol: </label>
-        {marketType === 'stock' && (
-          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            <option value="AAPL">Apple (AAPL)</option>
-            <option value="MSFT">Microsoft (MSFT)</option>
-            <option value="GOOGL">Google (GOOGL)</option>
-          </select>
-        )}
         {marketType === 'forex' && (
           <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+            <option value="AUDUSD">AUD/USD</option>
             <option value="EURUSD">EUR/USD</option>
             <option value="GBPUSD">GBP/USD</option>
+            <option value="USDCHF">USD/CHF</option>
+            <option value="USDJPY">USD/JPY</option>
           </select>
         )}
-        {marketType === 'crypto' && (
+        {marketType === 'commodities' && (
           <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            <option value="BTC">Bitcoin (BTC)</option>
-            <option value="ETH">Ethereum (ETH)</option>
+            <option value="SILBER">Silber</option>
+            <option value="GOLD">Gold</option>
           </select>
         )}
         <button

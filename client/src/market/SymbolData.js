@@ -1,60 +1,59 @@
-// market/SymbolData.js
-const symbolData = {
-  stock: [
-    {
-      symbol: 'AAPL',
-      description: 'Apple Inc.',
-      source: 'Yahoo Finance',
-      icon: 'apple-icon.png',
-      marketType: 'stock',
-    },
-    {
-      symbol: 'MSFT',
-      description: 'Microsoft Corp.',
-      source: 'Yahoo Finance',
-      icon: 'msft-icon.png',
-      marketType: 'stock',
-    },
-    {
-      symbol: 'GOOGL',
-      description: 'Alphabet Inc.',
-      source: 'Yahoo Finance',
-      icon: 'googl-icon.png',
-      marketType: 'stock',
-    },
-  ],
+const SymbolData = {
+  stock: [],
   forex: [
     {
+      symbol: 'AUDUSD',
+      description: 'AUD/USD',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'forex',
+    },
+    {
       symbol: 'EURUSD',
-      description: 'Euro/US Dollar',
-      source: 'FXCM',
-      icon: 'eur-usd.png',
+      description: 'EUR/USD',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
       marketType: 'forex',
     },
     {
       symbol: 'GBPUSD',
-      description: 'British Pound/US Dollar',
-      source: 'FXCM',
-      icon: 'gbp-usd.png',
+      description: 'GBP/USD',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'forex',
+    },
+    {
+      symbol: 'USDCHF',
+      description: 'USD/CHF',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'forex',
+    },
+    {
+      symbol: 'USDJPY',
+      description: 'USD/JPY',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
       marketType: 'forex',
     },
   ],
-  crypto: [
+  crypto: [],
+  commodities: [
     {
-      symbol: 'BTC',
-      description: 'Bitcoin',
-      source: 'Binance',
-      icon: 'btc-icon.png',
-      marketType: 'crypto',
+      symbol: 'SILBER',
+      description: 'Silber',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'commodities',
     },
     {
-      symbol: 'ETH',
-      description: 'Ethereum',
-      source: 'Binance',
-      icon: 'eth-icon.png',
-      marketType: 'crypto',
+      symbol: 'GOLD',
+      description: 'Gold',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'commodities',
     },
   ],
 };
 
-export default symbolData;
+export default SymbolData;

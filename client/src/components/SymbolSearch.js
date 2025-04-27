@@ -1,13 +1,12 @@
-// client/src/components/SymbolSearch.js
 import React, { useState } from 'react';
 import symbolData from '../market/SymbolData';
 import './SymbolSearch.css';
 
 const SymbolSearch = ({ onSymbolSelect, currentMarketType, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(currentMarketType);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const categories = ['stock', 'forex', 'crypto'];
+  const categories = ['all', 'stock', 'forex', 'crypto', 'commodities'];
 
   // Filter Symbole basierend auf Kategorie und Suchbegriff
   const filteredSymbols = () => {
@@ -64,11 +63,15 @@ const SymbolSearch = ({ onSymbolSelect, currentMarketType, onClose }) => {
             className={selectedCategory === category ? 'active' : ''}
             onClick={() => setSelectedCategory(category)}
           >
-            {category === 'stock'
+            {category === 'all'
+              ? 'Alle'
+              : category === 'stock'
               ? 'Aktien'
               : category === 'forex'
               ? 'Forex'
-              : 'Krypto'}
+              : category === 'crypto'
+              ? 'Krypto'
+              : 'Commodities'}
           </button>
         ))}
       </div>
