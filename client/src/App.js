@@ -15,6 +15,8 @@ function App() {
   const [timeframe, setTimeframe] = useState('D1');
   const [timeframeWarning, setTimeframeWarning] = useState(null);
   const [selectedTool, setSelectedTool] = useState(null);
+  // Für die Saison-Daten
+  const [seasonYears, setSeasonYears] = useState(5);
 
   useEffect(() => {
     const loadData = async () => {
@@ -22,7 +24,16 @@ function App() {
         setError(null);
         setTimeframeWarning(null);
 
-        const supportedTimeframes = ['M15', 'H1', 'H4', 'D1', 'W1', 'MN'];
+        const supportedTimeframes = [
+          'M1',
+          'M5',
+          'M15',
+          'H1',
+          'H4',
+          'D1',
+          'W1',
+          'MN',
+        ];
         if (!supportedTimeframes.includes(timeframe)) {
           setTimeframeWarning(
             `Timeframe ${timeframe} wird nicht unterstützt. Fallback auf Daily (D1).`
@@ -64,78 +75,72 @@ function App() {
     // Diese Funktion wird an Chart weitergegeben
   };
 
-  const timeframes = ['M15', 'H1', 'H4', 'D1', 'W1', 'MN'];
+  const timeframes = ['M1', 'M5', 'M15', 'H1', 'H4', 'D1', 'W1', 'MN'];
 
   return (
-    <div style={{ padding: '20px', position: 'relative' }}>
+    <div className="app-container">
       <h1>Market Simulation</h1>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+      {error && <div className="error-message">{error}</div>}
       {timeframeWarning && (
-        <div style={{ color: 'orange' }}>{timeframeWarning}</div>
+        <div className="warning-message">{timeframeWarning}</div>
       )}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ marginRight: '10px' }}>Markt: </label>
-        <select
-          value={marketType}
-          onChange={(e) => setMarketType(e.target.value)}
-        >
-          <option value="forex">Forex</option>
-          <option value="commodities">Rohstoffe</option>
-        </select>
-      </div>
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ marginRight: '10px' }}>Symbol: </label>
-        {marketType === 'forex' && (
-          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            <option value="AUDUSD">AUD/USD</option>
-            <option value="EURUSD">EUR/USD</option>
-            <option value="GBPUSD">GBP/USD</option>
-            <option value="USDCHF">USD/CHF</option>
-            <option value="USDJPY">USD/JPY</option>
+      <div className="controls">
+        <div className="market-selection">
+          <label>Markt: </label>
+          <select
+            value={marketType}
+            onChange={(e) => setMarketType(e.target.value)}
+          >
+            <option value="forex">Forex</option>
+            <option value="commodities">Rohstoffe</option>
           </select>
-        )}
-        {marketType === 'commodities' && (
-          <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            <option value="SILBER">Silber</option>
-            <option value="GOLD">Gold</option>
-          </select>
-        )}
-        <button
-          onClick={() => setShowSymbolSearch(true)}
-          style={{ marginLeft: '10px', padding: '5px 10px' }}
-        >
-          Symbol Suche
-        </button>
-      </div>
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ marginRight: '10px' }}>Timeframe: </label>
-        <div style={{ display: 'inline-flex', gap: '5px' }}>
-          {timeframes.map((tf) => (
-            <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              style={{
-                padding: '5px 10px',
-                backgroundColor: timeframe === tf ? '#666' : '#444',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {tf}
-            </button>
-          ))}
+        </div>
+        <div className="symbol-selection">
+          <label>Symbol: </label>
+          {marketType === 'forex' && (
+            <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+              <option value="AUDUSD">AUD/USD</option>
+              <option value="EURUSD">EUR/USD</option>
+              <option value="GBPUSD">GBP/USD</option>
+              <option value="USDCHF">USD/CHF</option>
+              <option value="USDJPY">USD/JPY</option>
+            </select>
+          )}
+          {marketType === 'commodities' && (
+            <select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+              <option value="SILBER">Silber</option>
+              <option value="GOLD">Gold</option>
+            </select>
+          )}
+          <button onClick={() => setShowSymbolSearch(true)}>
+            Symbol Suche
+          </button>
+        </div>
+        <div className="timeframe-selection">
+          <label>Timeframe: </label>
+          <div className="timeframe-buttons">
+            {timeframes.map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                className={timeframe === tf ? 'active' : ''}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <DrawingTools
-        onToolSelect={handleToolSelect}
-        onCategoryClose={handleToolDeselect}
-      />
-      <IndicatorTools onAddIndicator={handleAddIndicator} />
+
+      <div className="tools-section">
+        <DrawingTools
+          onToolSelect={handleToolSelect}
+          onCategoryClose={handleToolDeselect}
+        />
+        <IndicatorTools onAddIndicator={handleAddIndicator} />
+      </div>
       {showSymbolSearch && (
-        <div
-          style={{ position: 'fixed', top: '20%', left: '20%', zIndex: 1000 }}
-        >
+        <div className="symbol-search-modal">
           <SymbolSearch
             onSymbolSelect={handleSymbolSelect}
             currentMarketType={marketType}
@@ -143,12 +148,30 @@ function App() {
           />
         </div>
       )}
-      <Chart
-        data={data}
-        selectedTool={selectedTool}
-        onToolDeselect={handleToolDeselect}
-        onAddIndicator={handleAddIndicator}
-      />
+      <div className="seasonality-selection">
+        <label>Saison-Überblick (Jahre): </label>
+        {[5, 10, 15, 20].map((y) => (
+          <button
+            key={y}
+            className={seasonYears === y ? 'active' : ''}
+            onClick={() => setSeasonYears(y)}
+          >
+            {y} Jahre
+          </button>
+        ))}
+      </div>
+
+      <div className="chart-section">
+        <Chart
+          data={data}
+          marketType={marketType}
+          symbol={symbol}
+          seasonYears={seasonYears}
+          selectedTool={selectedTool}
+          onToolDeselect={handleToolDeselect}
+          onAddIndicator={handleAddIndicator}
+        />
+      </div>
     </div>
   );
 }

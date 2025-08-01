@@ -3,7 +3,14 @@ const SymbolData = {
   forex: [
     {
       symbol: 'AUDUSD',
-      description: 'AUD/USD',
+      description: '  AUD/USD',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'forex',
+    },
+    {
+      symbol: 'EURJPY',
+      description: 'EUR/JPY',
       icon: 'path/to/icon.png',
       source: 'MySQL',
       marketType: 'forex',
@@ -16,8 +23,22 @@ const SymbolData = {
       marketType: 'forex',
     },
     {
+      symbol: 'GBPJPY',
+      description: 'GBP/JPY',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'forex',
+    },
+    {
       symbol: 'GBPUSD',
       description: 'GBP/USD',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'forex',
+    },
+    {
+      symbol: 'USDCAD',
+      description: 'USD/CAD',
       icon: 'path/to/icon.png',
       source: 'MySQL',
       marketType: 'forex',
@@ -38,6 +59,36 @@ const SymbolData = {
     },
   ],
   crypto: [],
+  indixes: [
+    {
+      symbol: 'EUSTX50',
+      description: 'EUSTX50',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'indixes',
+    },
+    {
+      symbol: 'GER30',
+      description: 'GER30',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'indixes',
+    },
+    {
+      symbol: 'NAS100',
+      description: 'NAS100',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'indixes',
+    },
+    {
+      symbol: 'US30',
+      description: 'US30',
+      icon: 'path/to/icon.png',
+      source: 'MySQL',
+      marketType: 'indixes',
+    },
+  ],
   commodities: [
     {
       symbol: 'SILBER',
