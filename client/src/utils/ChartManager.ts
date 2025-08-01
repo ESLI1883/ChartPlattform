@@ -1,74 +1,43 @@
-import { ChartData, DrawingTool } from '../types';
-import { db } from '../db'; // MySQL-Verbindung (z.B. mit mysql2)
+import { ChartData, DrawingTool } from './types';
+
+const API_BASE_URL = 'http://localhost:3001/api';
 
 export class ChartManager {
-  static async createChart(symbol: string): Promise<string> {
-    const chartId = crypto.randomUUID();
-    const query = `
-      INSERT INTO charts (id, symbol, created_at)
-      VALUES (?, ?, ?)
-    `;
-    await db.execute(query, [chartId, symbol, new Date().toISOString()]);
-    return chartId;
+  static async createChart(symbol_timeframe: string): Promise<string> {
+    const response = await fetch(`${API_BASE_URL}/charts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol_timeframe }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Fehler beim Erstellen des Charts');
+    return data.id;
   }
 
   static async saveChart(chartId: string, drawingTools: DrawingTool[]): Promise<void> {
-    const deleteQuery = `DELETE FROM drawing_tools WHERE chart_id = ?`;
-    await db.execute(deleteQuery, [chartId]);
-
-    const insertQuery = `
-      INSERT INTO drawing_tools (id, chart_id, type, points, options, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-    for (const tool of drawingTools) {
-      await db.execute(insertQuery, [
-        tool.id,
-        chartId,
-        tool.type,
-        JSON.stringify(tool.points),
-        JSON.stringify(tool.options),
-        new Date(tool.createdAt).toISOString(),
-      ]);
-    }
+    const response = await fetch(`${API_BASE_URL}/charts/${chartId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ drawingTools }),
+    });
+    if (!response.ok) throw new Error('Fehler beim Speichern des Charts');
   }
 
   static async getChart(chartId: string): Promise<ChartData> {
-    const [charts] = await db.query(`SELECT * FROM charts WHERE id = ?`, [chartId]);
-    if (!charts.length) throw new Error('Chart nicht gefunden');
-
-    const [tools] = await db.query(`SELECT * FROM drawing_tools WHERE chart_id = ?`, [chartId]);
-    return {
-      id: charts[0].id,
-      symbol: charts[0].symbol,
-      createdAt: new Date(charts[0].created_at).getTime(),
-      drawingTools: tools.map((tool: any) => ({
-        id: tool.id,
-        type: tool.type,
-        points: JSON.parse(tool.points),
-        options: JSON.parse(tool.options),
-        createdAt: new Date(tool.created_at).getTime(),
-      })),
-    };
+    const response = await fetch(`${API_BASE_URL}/charts/${chartId}`);
+    if (!response.ok) throw new Error('Chart nicht gefunden');
+    return response.json();
   }
 
   static async getSavedCharts(): Promise<ChartData[]> {
-    const [charts] = await db.query(`SELECT * FROM charts`);
-    return Promise.all(
-      charts.map(async (chart: any) => {
-        const [tools] = await db.query(`SELECT * FROM drawing_tools WHERE chart_id = ?`, [chart.id]);
-        return {
-          id: chart.id,
-          symbol: chart.symbol,
-          createdAt: new Date(chart.created_at).getTime(),
-          drawingTools: tools.map((tool: any) => ({
-            id: tool.id,
-            type: tool.type,
-            points: JSON.parse(tool.points),
-            options: JSON.parse(tool.options),
-            createdAt: new Date(tool.created_at).getTime(),
-          })),
-        };
-      })
-    );
+    const response = await fetch(`${API_BASE_URL}/charts`);
+    if (!response.ok) throw new Error('Fehler beim Laden der Charts');
+    return response.json();
+  }
+
+  static async getMarketData(marketType: string, symbol: string, timeframe: string): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/market-data/${marketType}/${symbol}?timeframe=${timeframe}`);
+    if (!response.ok) throw new Error('Fehler beim Abrufen der Marktdaten');
+    return response.json();
   }
 }
