@@ -1,38 +1,106 @@
-.App {
+.app-container {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+h1 {
+  margin-bottom: 20px;
+  font-size: 24px;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.error-message {
+  color: red;
+  margin-bottom: 10px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.warning-message {
+  color: orange;
+  margin-bottom: 10px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.controls {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 20px; /* Erhöhte Abstände */
+  margin-bottom: 20px;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+}
+
+.market-selection,
+.symbol-selection,
+.timeframe-selection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+label {
+  font-weight: bold;
+}
+
+select,
+button {
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #e0e0e0;
+}
+
+.timeframe-selection {
+  flex-grow: 1; /* Nimmt verfügbaren Platz ein */
+}
+
+.timeframe-buttons {
+  display: flex;
+  flex-wrap: wrap; /* Sicherstellt Umbruch */
+  gap: 8px; /* Etwas mehr Abstand */
+}
+
+.timeframe-buttons button {
+  min-width: 45px; /* Etwas breitere Buttons */
+  text-align: center;
+  padding: 6px 12px; /* Etwas mehr Padding */
+}
+
+.timeframe-buttons button.active {
+  background-color: #666;
   color: white;
+  border: none;
 }
 
-.App-link {
-  color: #61dafb;
+.tools-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.symbol-search {
+  margin-left: 15px; /* Trennung von den Werkzeugen */
+}
+
+.symbol-search-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background-color: white;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.chart-section {
+  position: relative;
 }

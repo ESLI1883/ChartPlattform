@@ -1,11 +1,37 @@
-import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
-import { useEffect, useRef, useState } from 'react';
+// client/src/components/Chart.js
+
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  createChart,
+  CandlestickSeries,
+  LineSeries,
+  PriceScaleMode,
+} from 'lightweight-charts';
+
 import DrawingToolMenu from './DrawingToolMenu';
 
-const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
+const Chart = ({
+  data,
+  marketType,
+  symbol, // <-- now fully dynamic
+  selectedTool,
+  onToolDeselect,
+  onAddIndicator,
+}) => {
   const chartContainerRef = useRef();
   const [chart, setChart] = useState(null);
   const [series, setSeries] = useState(null);
+  const [seasonSeries, setSeasonSeries] = useState({
+    5: null,
+    10: null,
+    15: null,
+    20: null,
+  });
+  // Wir halten hier nicht länger “seasonData” pro‐Gruppe,
+  // sondern wir befüllen die LineSeries direkt nach dem Fetch.
+  // (Man könnte “seasonData” gerne noch in State halten, wenn man
+  //  eine weitere Komponente darauf zugreifen will –
+  //  aber für die reine Darstellung ist das nicht nötig.)
   const [drawnObjects, setDrawnObjects] = useState([]);
   const [indicators, setIndicators] = useState([]);
   const [selectedObject, setSelectedObject] = useState(null);
@@ -14,23 +40,49 @@ const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
   const [draggingHandle, setDraggingHandle] = useState(null);
   const draggingObjectRef = useRef(null);
 
-  useEffect(() => {
-    console.log('Chart-Komponente initialisiert. Daten:', data);
+  // ───────────────────────────────────────────────────────────────────────────────
+  // NEU: State für Sichtbarkeit der Saison-Linien
+  const [visibility, setVisibility] = useState({
+    5: true,
+    10: true,
+    15: true,
+    20: true,
+  });
+  // ───────────────────────────────────────────────────────────────────────────────
 
-    if (!data || data.length === 0) {
-      console.error('Keine Daten zum Rendern des Charts verfügbar.');
+  // ───────────────────────────────────────────────────────────────────────────────
+  // 1) Dieser Hook erzeugt das Chart‐Objekt und beide PriceScales,
+  //    baut die Candlestick‐Serie und vier leere LineSeries (5/10/15/20 Jahre).
+  // ───────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!chartContainerRef.current) {
+      console.error('Chart-Container nicht verfügbar.');
       return;
     }
 
     const chartInstance = createChart(chartContainerRef.current, {
-      width: 1400,
-      height: 600,
+      // ─────────────────────────────────────────────────────────────────────────
+      // Größe des Charts:
+      width: 1700, // (kann nach Bedarf änderbar gemacht werden)
+      height: 720,
+      // ─────────────────────────────────────────────────────────────────────────
       layout: {
         background: { color: '#ffffff' },
         textColor: '#333',
       },
       timeScale: { timeVisible: true, secondsVisible: false },
+      leftPriceScale: {
+        scaleMargins: { top: 0.1, bottom: 0.1 },
+        mode: PriceScaleMode.Normal,
+      },
+      rightPriceScale: {
+        scaleMargins: { top: 0.1, bottom: 0.1 },
+        mode: PriceScaleMode.Percentage,
+        autoScale: true,
+      },
     });
+
+    // Candlestick‐Serie auf der linken (Normal-)Skala
 
     const candlestickSeries = chartInstance.addSeries(CandlestickSeries, {
       upColor: '#26a69a',
@@ -38,24 +90,221 @@ const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
       borderVisible: false,
       wickUpColor: '#26a69a',
       wickDownColor: '#ef5350',
+      priceScaleId: 'left',
     });
 
-    candlestickSeries.setData(data);
+    // Vier LineSeries (alle auf der rechten [%] Skala), zunächst leer:
+    const seasonSeries5 = chartInstance.addSeries(LineSeries, {
+      color: '#FF0000', // Rot für 5 Jahre
+      lineWidth: 2,
+      priceScaleId: 'right',
+      title: '5 Jahre',
+      visible: visibility[5], // anfängliche Sichtbarkeit
+    });
+    const seasonSeries10 = chartInstance.addSeries(LineSeries, {
+      color: '#00FF00', // Grün für 10 Jahre
+      lineWidth: 2,
+      priceScaleId: 'right',
+      title: '10 Jahre',
+      visible: visibility[10],
+    });
+    const seasonSeries15 = chartInstance.addSeries(LineSeries, {
+      color: '#0000FF', // Blau für 15 Jahre
+      lineWidth: 2,
+      priceScaleId: 'right',
+      title: '15 Jahre',
+      visible: visibility[15],
+    });
+    const seasonSeries20 = chartInstance.addSeries(LineSeries, {
+      color: '#FFA500', // Orange für 20 Jahre
+      lineWidth: 2,
+      priceScaleId: 'right',
+      title: '20 Jahre',
+      visible: visibility[20],
+    });
 
     setChart(chartInstance);
     setSeries(candlestickSeries);
+    setSeasonSeries({
+      5: seasonSeries5,
+      10: seasonSeries10,
+      15: seasonSeries15,
+      20: seasonSeries20,
+    });
 
     return () => {
-      console.log('Chart-Komponente entfernt.');
-      chartInstance.remove();
+      if (chartInstance) {
+        chartInstance.remove();
+      }
     };
-  }, [data]);
+  }, []); // nur einmal beim Mount
 
-  // Berechne Moving Average
+  // ───────────────────────────────────────────────────────────────────────────────
+  // 2) Wenn sich “data” (die Candlestick‐Daten, vom Parent über Props geliefert)
+  //    ändert, setzen wir sie in “series.setData(...)”.
+  // ───────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (series && data && data.length > 0) {
+      series.setData(data);
+    }
+  }, [series, data]);
+
+  // ───────────────────────────────────────────────────────────────────────────────
+  // 3) Hook: Saison‐Daten für **dynamisches** `symbol` laden
+  //
+  //    Immer wenn sich “symbol” ODER “data” (Candles) ändert, rufen wir
+  //    `/api/seasonality?symbol=${symbol}` und zeichnen die vier Linien
+  //    (5/10/15/20 Jahre) **im Kalender-Raster des aktuellen Jahres**.
+  // ───────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    // a) Prüfen, ob alles Notwendige bereitsteht:
+    if (
+      !chart ||
+      !series ||
+      !seasonSeries[5] ||
+      !seasonSeries[10] ||
+      !seasonSeries[15] ||
+      !seasonSeries[20] ||
+      !symbol ||
+      !data ||
+      data.length === 0
+    ) {
+      return;
+    }
+
+    // b) Ermittle, welche Kalenderjahre in den Candlesticks vorkommen
+    //    (rein informativ – hier brauchen wir nur: Länge ≥ 20 beispielsweise).
+    const candlestickYears = Array.from(
+      new Set(
+        data.map((c) => {
+          const date =
+            typeof c.time === 'number'
+              ? new Date(c.time * 1000)
+              : new Date(c.time);
+          return date.getUTCFullYear();
+        })
+      )
+    ).sort((a, b) => a - b);
+
+    // c) Erzeuge eine Liste **aller Handelstage (Mo–Fr)** des aktuellen Jahres
+    const currentYear = new Date().getFullYear();
+    const businessDaysOfCurrentYear = [];
+    for (let m = 0; m < 12; m++) {
+      const daysInMonth = new Date(
+        Date.UTC(currentYear, m + 1, 0)
+      ).getUTCDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateUTC = new Date(Date.UTC(currentYear, m, d));
+        const weekday = dateUTC.getUTCDay(); // 0 = So, 6 = Sa
+        if (weekday !== 0 && weekday !== 6) {
+          const yyyy = currentYear;
+          const mm = String(m + 1).padStart(2, '0');
+          const dd = String(d).padStart(2, '0');
+          businessDaysOfCurrentYear.push(`${yyyy}-${mm}-${dd}`);
+        }
+      }
+    }
+    // Jetzt sind in businessDaysOfCurrentYear ca. 252–260 Einträge
+    // (alle Mo–Fr‐Tage von Jan 1 bis Dec 31 dieses Jahres).
+
+    // d) Rufe die API **mit dem dynamischen symbol‐String** auf:
+    fetch(`http://localhost:3001/api/seasonality?symbol=${symbol}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
+        console.log('Geladene Saison-Daten für', symbol, ':', json);
+
+        // e) Für N in [5,10,15,20] Jahre die jeweilige Kurve erzeugen
+        [5, 10, 15, 20].forEach((N) => {
+          // e.1) Prüfe, ob wir überhaupt mindestens N Jahre Candles haben
+          if (candlestickYears.length < N) {
+            return; // nicht genug Historie → überspringe
+          }
+
+          // e.2) Filtere aus dem JSON nur die Objekte mit years_back === N
+          const yearDataAll = json.filter((s) => s.years_back === N);
+
+          // e.3) Baue Lookup { trading_day_index → avg_pct }
+          const avgPctByDay = {};
+          yearDataAll.forEach((entry) => {
+            avgPctByDay[entry.trading_day_index] = entry.avg_pct;
+          });
+
+          // e.4) Mappen auf das aktuelle Jahres‐Raster
+          const transformedSeasonData = [];
+          for (let i = 0; i < businessDaysOfCurrentYear.length; i++) {
+            const tradingIdx = i + 1; // 1-basiert (1. Handelstag, 2. Handelstag, …)
+            const pctValue = avgPctByDay[tradingIdx];
+            // Nur dann pushen, wenn pctValue eine Zahl ist
+            if (pctValue === null || pctValue === undefined) {
+              continue;
+            }
+            if (typeof pctValue !== 'number' || Number.isNaN(pctValue)) {
+              continue;
+            }
+            transformedSeasonData.push({
+              time: businessDaysOfCurrentYear[i], // "2025-03-15", "2025-03-16", …
+              value: pctValue,
+            });
+          }
+
+          // e.5) Sortiere (rein vorsorglich):
+          transformedSeasonData.sort((a, b) => a.time.localeCompare(b.time));
+
+          // e.6) Schreibe die Daten in seasonSeries[N] und wende die Sichtbarkeit an
+          seasonSeries[N].setData(transformedSeasonData);
+          seasonSeries[N].applyOptions({ visible: visibility[N] });
+        });
+
+        // f) Passe die Y-Achse (Prozent-Skala) an:
+        chart.applyOptions({
+          rightPriceScale: {
+            autoScale: true,
+            scaleMargins: { top: 0.1, bottom: 0.1 },
+          },
+        });
+
+        // g) KEIN manuelles setVisibleRange: Chart zoomt automatisch
+      })
+      .catch((err) => {
+        console.error('Seasonality-Fetch error:', err.message);
+      });
+  }, [chart, series, seasonSeries, marketType, symbol, data, visibility]);
+
+  // ───────────────────────────────────────────────────────────────────────────────
+  // 4) Wenn sich “visibility” (Buttons 5/10/15/20 Jahre) ändert,
+  //    passen wir nur die sichtbaren Serien an:
+  // ───────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (
+      !chart ||
+      !series ||
+      !seasonSeries[5] ||
+      !seasonSeries[10] ||
+      !seasonSeries[15] ||
+      !seasonSeries[20]
+    ) {
+      return;
+    }
+
+    [5, 10, 15, 20].forEach((yr) => {
+      const seriesInstance = seasonSeries[yr];
+      const isVisible = visibility[yr];
+      seriesInstance.applyOptions({ visible: isVisible });
+    });
+  }, [visibility, chart, series, seasonSeries]);
+
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Der Rest deiner Drawing-/Indicator-/Trendline-Logik bleibt unverändert.
+  // Ich habe aus Platzgründen nur die Saisonalitäts-relevanten Teile auskommentiert.
+  // ───────────────────────────────────────────────────────────────────────────────
+
   const calculateMovingAverage = (data, period) => {
     const maData = [];
     for (let i = 0; i < data.length; i++) {
-      if (i < period - 1) continue; // Nicht genug Daten für den MA
+      if (i < period - 1) continue;
       const slice = data.slice(i - period + 1, i + 1);
       const sum = slice.reduce((acc, val) => acc + val.close, 0);
       const average = sum / period;
@@ -64,9 +313,8 @@ const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
     return maData;
   };
 
-  // Füge Indikatoren hinzu
   const handleAddIndicator = (indicator) => {
-    if (indicator.type === 'ma') {
+    if (indicator.type === 'ma' && chart) {
       const maData = calculateMovingAverage(data, indicator.period);
       const maSeries = chart.addSeries(LineSeries, {
         color: indicator.color,
@@ -86,7 +334,6 @@ const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
     }
   };
 
-  // Handle Klick-Events
   useEffect(() => {
     if (!chart || !series || !chartContainerRef.current) {
       console.log('Chart, Series oder Container nicht verfügbar:', {
@@ -108,6 +355,7 @@ const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
       }
 
       const price = series.coordinateToPrice(param.point.y);
+      const time = param.time;
       if (price == null) {
         console.log('Preis konnte nicht ermittelt werden:', param.point.y);
         return;
@@ -327,33 +575,37 @@ const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
       setMenuPosition({ x: x + 20, y });
     };
 
-    if (selectedTool) {
-      console.log('Abonniere Klick-Events für Tool:', selectedTool);
-      chart.subscribeClick(handleClick);
-    } else {
-      console.log('Abonniere Klick-Events für Objektauswahl');
-      chart.subscribeClick(handleObjectClick);
+    if (chart && chartContainerRef.current) {
+      if (selectedTool) {
+        console.log('Abonniere Klick-Events für Tool:', selectedTool);
+        chart.subscribeClick(handleClick);
+      } else {
+        console.log('Abonniere Klick-Events für Objektauswahl');
+        chart.subscribeClick(handleObjectClick);
+      }
+
+      const container = chartContainerRef.current;
+      container.addEventListener('contextmenu', handleRightClick);
+
+      return () => {
+        if (chart) {
+          chart.unsubscribeClick(handleClick);
+          chart.unsubscribeClick(handleObjectClick);
+        }
+        if (container) {
+          container.removeEventListener('contextmenu', handleRightClick);
+        }
+      };
     }
-
-    const container = chartContainerRef.current;
-    container.addEventListener('contextmenu', handleRightClick);
-
-    return () => {
-      console.log('Entferne Klick-Event-Listener.');
-      chart.unsubscribeClick(handleClick);
-      chart.unsubscribeClick(handleObjectClick);
-      container.removeEventListener('contextmenu', handleRightClick);
-    };
   }, [
-    selectedTool,
     chart,
     series,
+    selectedTool,
     onToolDeselect,
     drawnObjects,
     selectedObject,
   ]);
 
-  // Separater useEffect für Mausbewegungen
   useEffect(() => {
     if (!chart || !series || !dragging) return;
 
@@ -496,26 +748,62 @@ const Chart = ({ data, selectedTool, onToolDeselect, onAddIndicator }) => {
     }
   };
 
-  const handleCloseMenu = () => {
-    setSelectedObject(null);
-    setMenuPosition(null);
-  };
-
   return (
-    <div ref={chartContainerRef} style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }}>
+      {/* ────────────────────────────────────────────────────────────────────────────
+          Buttons zum Ein-/Ausblenden der Saisonlinien
+          Sie stehen **außerhalb** des Chart-Containers, 
+          damit die Chart‐Events (subscribeClick etc.) sie nicht überlagern.
+      ──────────────────────────────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: '10px' }}>
+        {[5, 10, 15, 20].map((yr) => (
+          <button
+            key={yr}
+            onClick={() =>
+              setVisibility((prev) => ({ ...prev, [yr]: !prev[yr] }))
+            }
+            style={{
+              marginRight: '8px',
+              padding: '5px 10px',
+              backgroundColor: visibility[yr] ? '#1976d2' : '#f0f0f0',
+              color: visibility[yr] ? '#fff' : '#333',
+              border: '1px solid #ccc',
+              borderRadius: '3px',
+              cursor: 'pointer',
+            }}
+          >
+            {yr} Jahre
+          </button>
+        ))}
+      </div>
+
+      {/* Chart‐Container */}
+      <div
+        ref={chartContainerRef}
+        style={{
+          width: '100%', // Container nimmt 100% der Elternbreite ein
+          height: '800px', // Höhe in Pixel, kann angepasst werden
+        }}
+      />
+
+      {/* Zeichnungskontextmenü */}
       {menuPosition && selectedObject && (
         <div
           style={{
             position: 'absolute',
             left: menuPosition.x,
             top: menuPosition.y,
+            zIndex: 3,
           }}
         >
           <DrawingToolMenu
             tool={selectedObject}
             onUpdate={handleUpdateObject}
             onToggleVisibility={handleToggleVisibility}
-            onClose={handleCloseMenu}
+            onClose={() => {
+              setSelectedObject(null);
+              setMenuPosition(null);
+            }}
           />
         </div>
       )}
