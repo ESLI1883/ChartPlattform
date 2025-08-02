@@ -6,6 +6,7 @@ import {
   CandlestickSeries,
   LineSeries,
   PriceScaleMode,
+  CrosshairMode,
 } from 'lightweight-charts';
 
 import DrawingToolMenu from './DrawingToolMenu';
@@ -39,6 +40,12 @@ const Chart = ({
   const [dragging, setDragging] = useState(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
   const draggingObjectRef = useRef(null);
+
+
+subscribeToEvents(){
+  this.Chart.subscribeCrosshairMove(this.hanleC)
+}
+
 
   // ───────────────────────────────────────────────────────────────────────────────
   // NEU: State für Sichtbarkeit der Saison-Linien
@@ -77,8 +84,11 @@ const Chart = ({
       },
       rightPriceScale: {
         scaleMargins: { top: 0.1, bottom: 0.1 },
-        mode: PriceScaleMode.Percentage,
+        mode: PriceScaleMode.Normal,
         autoScale: true,
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
       },
     });
 

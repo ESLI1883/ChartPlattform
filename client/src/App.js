@@ -137,7 +137,6 @@ function App() {
           onToolSelect={handleToolSelect}
           onCategoryClose={handleToolDeselect}
         />
-        <IndicatorTools onAddIndicator={handleAddIndicator} />
       </div>
       {showSymbolSearch && (
         <div className="symbol-search-modal">

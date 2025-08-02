@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './DrawingTools.css';
 
-const DrawingTools = ({ onToolSelect, onCategoryClose }) => {
+const DrawingTools = ({ onToolSelect }) => {
   const [activeCategory, setActiveCategory] = useState(null);
 
   const tools = {
@@ -34,10 +34,15 @@ const DrawingTools = ({ onToolSelect, onCategoryClose }) => {
     setActiveCategory(activeCategory === category ? null : category);
   };
 
-  const handleToolSelect = (tool) => {
-    onToolSelect(tool);
+  const handleToolSelect = (toolKey) => {
+    onToolSelect(toolKey, {
+      color: '#000000',
+      lineWidth: 2,
+      transparency: 1,
+      priority: 'foreground',
+      visible: true,
+    });
     setActiveCategory(null); // Untermenü schließen
-    // onCategoryClose wird jetzt nicht direkt aufgerufen
   };
 
   return (

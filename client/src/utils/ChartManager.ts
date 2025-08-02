@@ -1,4 +1,4 @@
-import { ChartData, DrawingTool } from './types';
+import { ChartData, DrawingTool } from '../types';
 
 const API_BASE_URL = 'http://localhost:3001/api';
 

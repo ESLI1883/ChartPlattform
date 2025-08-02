@@ -1,33 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, IChartApi } from 'lightweight-charts';
 import { ChartManager } from '../utils/ChartManager';
-import { ChartData, DrawingTool } from '../types';
-
-// Verfügbare Symbols mit Zeiteinheiten
-const availableSymbols = [
-  'BTCUSD_1D', 'BTCUSD_1H', 'EURUSD_1D', 'EURUSD_1H', 'XAUUSD_1D',
-].map(s => {
-  const [symbol, timeframe] = s.split('_');
-  return { symbol, timeframe, full: s };
-});
+import { DrawingTool } from '../types';
+import DrawingTools from './DrawingTools';
+import DrawingToolMenu from './DrawingToolMenu';
 
 interface TrendLine {
   start: { x: number; y: number };
   end: { x: number; y: number };
   color: string;
+  lineWidth: number;
+  transparency: number;
+  priority: string;
+  visible: boolean;
 }
 
 const ChartComponent: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [chartId, setChartId] = useState<string | null>(null);
-  const [drawingTools, setDrawingTools] = useState<DrawingTool[]>([]);
-  const [activeTool, setActiveTool] = useState<string | null>(null);
-  const [selectedSymbol, setSelectedSymbol] = useState(availableSymbols[0].full);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [trendLines, setTrendLines] = useState<TrendLine[]>([]);
   const [drawing, setDrawing] = useState(false);
   const [currentLine, setCurrentLine] = useState<{ start: { x: number; y: number } } | null>(null);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [selectedToolSettings, setSelectedToolSettings] = useState({ color: '#000000', lineWidth: 2, transparency: 1, priority: 'foreground', visible: true });
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     const initializeChart = async () => {
@@ -37,25 +35,19 @@ const ChartComponent: React.FC = () => {
           height: 400,
         });
         const series = chartRef.current.addCandlestickSeries();
-        const [symbol, timeframe] = selectedSymbol.split('_');
-        const data = await ChartManager.getMarketData('crypto', symbol, timeframe); // Passe marketType an
+        // Annahme: Deine Logik lädt hier die Daten basierend auf der Menüauswahl
+        const data = await ChartManager.getMarketData('crypto', 'BTCUSD', '1D'); // Ersetze mit deiner Logik
         setMarketData(data);
         series.setData(data);
 
         if (!chartId) {
-          const newChartId = await ChartManager.createChart(selectedSymbol);
+          const newChartId = await ChartManager.createChart('BTCUSD_1D'); // Ersetze mit deiner Logik
           setChartId(newChartId);
-        } else {
-          const data = await ChartManager.getChart(chartId);
-          const [sym, tf] = data.symbol_timeframe.split('_');
-          const newData = await ChartManager.getMarketData('crypto', sym, tf);
-          setMarketData(newData);
-          series.setData(newData);
         }
       }
     };
     initializeChart();
-  }, [chartId, selectedSymbol]);
+  }, [chartId]);
 
   useEffect(() => {
     const canvas = chartContainerRef.current?.querySelector('canvas');
@@ -65,31 +57,37 @@ const ChartComponent: React.FC = () => {
         const render = () => {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           trendLines.forEach((line) => {
-            ctx.beginPath();
-            ctx.moveTo(line.start.x, line.start.y);
-            ctx.lineTo(line.end.x, line.end.y);
-            ctx.strokeStyle = line.color;
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            if (line.visible) {
+              ctx.globalAlpha = line.transparency;
+              ctx.beginPath();
+              ctx.moveTo(line.start.x, line.start.y);
+              ctx.lineTo(line.end.x, line.end.y);
+              ctx.strokeStyle = line.color;
+              ctx.lineWidth = line.lineWidth;
+              ctx.stroke();
+              ctx.globalAlpha = 1; // Zurücksetzen
+            }
           });
           if (drawing && currentLine && chartRef.current) {
             ctx.beginPath();
             ctx.moveTo(currentLine.start.x, currentLine.start.y);
-            const end = chartRef.current.priceToCoordinate(marketData[marketData.length - 1].close); // Einfache Endpunkt-Schätzung
-            ctx.lineTo(currentLine.start.x + 100, currentLine.start.y); // Temporäre Linie
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 1;
+            const endY = currentLine.start.y;
+            ctx.lineTo(currentLine.start.x + 100, endY);
+            ctx.strokeStyle = selectedToolSettings.color;
+            ctx.lineWidth = selectedToolSettings.lineWidth;
+            ctx.globalAlpha = selectedToolSettings.transparency;
             ctx.stroke();
+            ctx.globalAlpha = 1;
           }
           requestAnimationFrame(render);
         };
         render();
 
         canvas.addEventListener('mousedown', (event) => {
-          const rect = canvas.getBoundingClientRect();
-          const x = event.clientX - rect.left;
-          const y = event.clientY - rect.top;
           if (activeTool === 'trendline' && !drawing) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
             setCurrentLine({ start: { x, y } });
             setDrawing(true);
           }
@@ -100,18 +98,32 @@ const ChartComponent: React.FC = () => {
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
-            setTrendLines((prev) => [...prev, { start: currentLine.start, end: { x, y }, color: '#ff0000' }]);
+            const newTrendLine = {
+              start: currentLine.start,
+              end: { x, y },
+              color: selectedToolSettings.color,
+              lineWidth: selectedToolSettings.lineWidth,
+              transparency: selectedToolSettings.transparency,
+              priority: selectedToolSettings.priority,
+              visible: selectedToolSettings.visible,
+            };
+            setTrendLines((prev) => [...prev, newTrendLine]);
             setDrawing(false);
             setCurrentLine(null);
             const tool: DrawingTool = {
               id: crypto.randomUUID(),
               type: 'trendline',
               points: [{ x: currentLine.start.x, y: currentLine.start.y }, { x, y }],
-              options: { color: '#ff0000', lineWidth: 1 },
+              options: {
+                color: selectedToolSettings.color,
+                lineWidth: selectedToolSettings.lineWidth,
+                transparency: selectedToolSettings.transparency,
+                priority: selectedToolSettings.priority,
+                visible: selectedToolSettings.visible,
+              },
               createdAt: Date.now(),
             };
-            setDrawingTools((prev) => [...prev, tool]);
-            if (chartId) ChartManager.saveChart(chartId, [...drawingTools, tool]);
+            if (chartId) ChartManager.saveChart(chartId, [tool]);
           }
         });
 
@@ -121,21 +133,33 @@ const ChartComponent: React.FC = () => {
         };
       }
     }
-  }, [activeTool, chartId, drawing, currentLine, trendLines, drawingTools, marketData]);
+  }, [activeTool, drawing, currentLine, trendLines, marketData, chartId, selectedToolSettings]);
+
+  const handleToolSelect = (toolKey, initialSettings) => {
+    setActiveTool(toolKey);
+    setSelectedToolSettings(initialSettings);
+    if (toolKey === 'trendline') {
+      setShowMenu(true);
+    }
+  };
+
+  const handleUpdateSettings = (settings) => {
+    setSelectedToolSettings(settings);
+    setShowMenu(false);
+  };
 
   if (!chartId) return <div>Laden...</div>;
 
   return (
     <div>
-      <div>
-        <select value={selectedSymbol} onChange={(e) => setSelectedSymbol(e.target.value)}>
-          {availableSymbols.map(({ full }) => (
-            <option key={full} value={full}>{full}</option>
-          ))}
-        </select>
-        <button onClick={() => setChartId(null)}>Neues Chart</button>
-        <button onClick={() => setActiveTool('trendline')}>Trendlinie</button>
-      </div>
+      <DrawingTools onToolSelect={handleToolSelect} />
+      {showMenu && (
+        <DrawingToolMenu
+          tool={selectedToolSettings}
+          onUpdate={handleUpdateSettings}
+          onClose={() => setShowMenu(false)}
+        />
+      )}
       <div ref={chartContainerRef} style={{ position: 'relative' }} />
     </div>
   );
