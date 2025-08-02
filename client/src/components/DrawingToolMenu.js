@@ -1,8 +1,8 @@
 import React from 'react';
 import './DrawingToolMenu.css';
 
-const DrawingToolMenu = ({ tool, onUpdate, onToggleVisibility, onClose }) => {
-  const [color, setColor] = React.useState(tool.color || 'blue');
+const DrawingToolMenu = ({ tool, onUpdate, onClose }) => {
+  const [color, setColor] = React.useState(tool.color || '#000000');
   const [thickness, setThickness] = React.useState(tool.lineWidth || 2);
   const [transparency, setTransparency] = React.useState(
     tool.transparency || 1
@@ -18,11 +18,7 @@ const DrawingToolMenu = ({ tool, onUpdate, onToggleVisibility, onClose }) => {
       priority,
       visible,
     });
-  };
-
-  const handleToggleVisibility = () => {
-    setVisible(!visible);
-    onToggleVisibility(!visible);
+    onClose();
   };
 
   return (
@@ -65,9 +61,12 @@ const DrawingToolMenu = ({ tool, onUpdate, onToggleVisibility, onClose }) => {
         </select>
       </div>
       <div>
-        <button onClick={handleToggleVisibility}>
-          {visible ? 'Ausblenden' : 'Einblenden'}
-        </button>
+        <label>Sichtbar: </label>
+        <input
+          type="checkbox"
+          checked={visible}
+          onChange={(e) => setVisible(e.target.checked)}
+        />
       </div>
       <div>
         <button onClick={handleUpdate}>Übernehmen</button>

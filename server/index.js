@@ -1,8 +1,9 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-const app = express();
+const crypto = require('crypto');
 
+const app = express();
 app.use(express.json());
 app.use(cors());
 
@@ -31,6 +32,33 @@ async function checkTableExists(connection, tableName) {
   }
 }
 
+// Initialisiere Tabellen für charts und drawing_tools
+(async () => {
+  try {
+    const connection = await pool.getConnection();
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS charts (
+        id VARCHAR(36) PRIMARY KEY,
+        symbol_timeframe VARCHAR(100) NOT NULL, -- Anpassung für Symbol_Timeframe
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS drawing_tools (
+        id VARCHAR(36) PRIMARY KEY,
+        chart_id VARCHAR(36) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        points JSON NOT NULL,
+        options JSON NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (chart_id) REFERENCES charts(id) ON DELETE CASCADE
+      );
+    `);
+    connection.release();
+    console.log('Tabellen charts und drawing_tools erstellt oder vorhanden');
+  } catch (error) {
+    console.error('Fehler beim Erstellen der Tabellen:', error);
+  }
+})();
+
 app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
   const { marketType, symbol } = req.params;
   const { timeframe } = req.query;
@@ -40,7 +68,6 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
       `Abfrage für Symbol: ${symbol}, MarketType: ${marketType}, Timeframe: ${timeframe}`
     );
 
-    // Mappe die Timeframes zu den Tabellenendungen
     let dbTimeframe;
     switch (timeframe) {
       case 'M1':
@@ -74,46 +101,32 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
         dbTimeframe = 'd1'; // Standardwert
     }
 
-    // Bestimme die Tabelle basierend auf Symbol und Zeitrahmen
     const tableName = `${symbol.toLowerCase()}_${dbTimeframe}`;
     console.log(`Verwende Tabelle: ${tableName}`);
 
-    // Prüfe, ob die Tabelle existiert
     const connection = await pool.getConnection();
     const tableExists = await checkTableExists(connection, tableName);
     if (!tableExists) {
-      console.error(`Tabelle ${tableName} existiert nicht in der Datenbank.`);
       connection.release();
       return res
         .status(404)
         .json({ error: `Tabelle ${tableName} existiert nicht.` });
     }
-    console.log('QUERY TABLE NAME: ', tableName);
-    // Abfrage der Daten aus der Datenbank
+
     const [rows] = await connection.query(
-      `SELECT timestamp, open, high, low, close 
-       FROM \`${tableName}\` 
-       ORDER BY timestamp ASC`,
+      `SELECT timestamp, open, high, low, close FROM \`${tableName}\` ORDER BY timestamp ASC`,
       []
     );
     connection.release();
 
-    console.log('Daten aus der Datenbank:', rows);
-
     if (!rows || rows.length === 0) {
-      console.error('Keine Daten aus der Datenbank erhalten für:', {
-        symbol,
-        timeframe: dbTimeframe,
-      });
       return res
         .status(404)
         .json({ error: `Keine Daten in der Tabelle ${tableName} gefunden.` });
     }
 
-    // Daten im richtigen Format für Lightweight Charts bereitstellen
     const chartData = rows
       .map((entry, index) => {
-        // Prüfe, ob timestamp ein gültiges Datum ist
         const parsedDate = new Date(entry.timestamp);
         if (isNaN(parsedDate.getTime())) {
           console.warn(
@@ -122,7 +135,6 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
           );
           return null;
         }
-
         const time = Math.floor(parsedDate.getTime() / 1000);
         if (
           !time ||
@@ -138,7 +150,6 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
           console.warn(`Ungültiger Datensatz ${index}:`, entry);
           return null;
         }
-
         return {
           time: time,
           open: Number(entry.open),
@@ -149,16 +160,12 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
       })
       .filter((entry) => entry !== null);
 
-    console.log('Formatierte chartData:', chartData);
-
     if (chartData.length === 0) {
-      console.error('Keine gültigen Daten nach Formatierung:', rows);
       return res
         .status(404)
         .json({ error: 'Keine gültigen Daten nach Formatierung.' });
     }
 
-    // Entferne Duplikate basierend auf dem Zeitstempel
     const uniqueChartData = [];
     const seenTimes = new Set();
     for (const entry of chartData) {
@@ -170,19 +177,12 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
       }
     }
 
-    console.log('Unique chartData nach Duplikat-Entfernung:', uniqueChartData);
-
     if (uniqueChartData.length === 0) {
-      console.error(
-        'Keine gültigen Daten nach Duplikat-Entfernung:',
-        chartData
-      );
       return res
         .status(404)
         .json({ error: 'Keine gültigen Daten nach Duplikat-Entfernung.' });
     }
 
-    // Anpassung der Dezimalstellen basierend auf marketType
     if (marketType === 'forex') {
       uniqueChartData.forEach((d) => {
         d.open = Number(d.open.toFixed(5));
@@ -201,89 +201,56 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
 
     uniqueChartData.sort((a, b) => a.time - b.time);
 
-    console.log('Sortierte chartData:', uniqueChartData);
-
     res.json(uniqueChartData);
   } catch (error) {
-    console.error('Fehler beim Abrufen der Daten:', error.message);
-    console.error('Stacktrace:', error.stack);
+    console.error('Fehler beim Abrufen der Daten:', error.message, error.stack);
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
-+ * GET /api/seasonality
-+ * Query-Params:
-+ *   marketType – z.B. "forex" oder "commodities"
-+ *   symbol     – z.B. "EURUSD" oder "GOLD"
-+ *   years      – 5, 10, 15 oder 20
-+ */
-
-// --- 1) API: Rohe Tages-History (z. B. Candlestick) für ein Symbol laden ---
 app.get('/api/raw-history', async (req, res) => {
   const symbolParam = req.query.symbol;
   if (!symbolParam) {
-    return res.status(400).json({
-      error: 'Bitte Symbol als Query-Parameter angeben, z.B. ?symbol=EURUSD',
-    });
+    return res
+      .status(400)
+      .json({
+        error: 'Bitte Symbol als Query-Parameter angeben, z.B. ?symbol=EURUSD',
+      });
   }
 
-  // 1.a) Symbol validieren und in lower-case umwandeln
   const symbol = sanitizeSymbol(symbolParam);
   if (!symbol) {
     return res.status(400).json({ error: 'Ungültiges Symbol.' });
   }
 
-  // 1.b) Tabellennamen aufbauen (z.B. eurusd_d1)
-  //       Falls du stattdessen nur eine Tabelle mit Spalte „symbol“ hast,
-  //       musst du die SQL-Query entsprechend anpassen.
   const tableName = `${symbol}_d1`;
 
   try {
-    // 1.c) Query dynamisch erzeugen (auf deine tatsächliche Schema-Struktur anpassen)
-    //      Wir holen alle Einträge ab 2005-01-01, aufsteigend sortiert
     const [rows] = await pool.query(
-      `SELECT timestamp AS time, close 
-       FROM \`${tableName}\` 
-       WHERE timestamp >= '2005-01-01' 
-       ORDER BY timestamp ASC`
+      `SELECT timestamp AS time, close FROM \`${tableName}\` WHERE timestamp >= '2005-01-01' ORDER BY timestamp ASC`
     );
 
-    // 1.d) Wir müssen rows in das Format bringen, das das Frontend erwartet:
-    //      [{ time: 1609459200, close: 1.2234 }, …] oder time als ISO-String, je nachdem.
-    //      Angenommen, das Frontend rechnet mit Unix-Sekunden im field „time“:
     const transformed = rows.map((r) => ({
       time: Math.floor(new Date(r.time).getTime() / 1000),
       close: parseFloat(r.close),
     }));
 
-    return res.json(transformed);
+    res.json(transformed);
   } catch (err) {
     console.error('Fehler beim Abrufen der Rohdaten:', err);
-    return res
+    res
       .status(500)
       .json({ error: 'Datenbankfehler beim Abrufen der Rohdaten.' });
   }
 });
 
-/**
- * GET /api/seasonality?symbol=XYZ
- * ---------------------------------------------------------
- * Liefert für die letzten 5, 10, 15 und 20 Jahre (sofern vorhanden)
- * pro Tag im Jahr (day_of_year: 1–365/366) den durchschnittlichen
- * Prozent-Return relativ zum Kurs am Jahresanfang.
- **/
-// --- Utility: prüfe, ob der symbol-Parameter „sauber“ ist (nur A-Z, a-z, 0-9 und evtl. Unterstrich) ---
-
 function sanitizeSymbol(sym) {
   if (typeof sym !== 'string') return null;
   const cleaned = sym.trim().toLowerCase();
-  // Erlaube nur Buchstaben, Ziffern und Unterstrich
   if (!/^[a-z0-9_]+$/.test(cleaned)) return null;
   return cleaned;
 }
 
-// --- 2) API: Saisonale Daten (Durchschnitts-Returns) für ein Symbol berechnen und zurückgeben ---
 app.get('/api/seasonality', async (req, res) => {
   const symbolParam = req.query.symbol;
   if (!symbolParam) {
@@ -292,54 +259,39 @@ app.get('/api/seasonality', async (req, res) => {
       .json({ error: 'Bitte Symbol angeben, z.B. ?symbol=EURUSD' });
   }
 
-  // 2.a) Symbol validieren und in lower-case umwandeln
   const symbol = sanitizeSymbol(symbolParam);
   if (!symbol) {
     return res.status(400).json({ error: 'Ungültiges Symbol.' });
   }
 
-  // 2.b) Tabellennamen wie oben
   const tableName = `${symbol}_d1`;
 
   try {
-    // 2.c) Lade alle historischen Schlusskurse (D1) ab 2005
     const [rows] = await pool.query(
-      `SELECT timestamp, close
-       FROM \`${tableName}\`
-       WHERE timestamp >= '2005-01-01'
-       ORDER BY timestamp ASC`
+      `SELECT timestamp, close FROM \`${tableName}\` WHERE timestamp >= '2005-01-01' ORDER BY timestamp ASC`
     );
     if (!rows || rows.length === 0) {
-      console.log('🚨 Keine Rohdaten gefunden für', symbol);
       return res.status(404).json({ error: 'Keine Daten gefunden.' });
     }
-    console.log(
-      `ℹ️ ${rows.length} Zeilen historische Daten geladen für ${symbol}.`
-    );
 
-    // 2.d) Transformiere in ein Array von { date: Date, close: Number }
     const priceData = rows.map((r) => ({
       date: new Date(r.timestamp),
       close: parseFloat(r.close),
     }));
 
-    // 2.e) Gruppiere priceData nach Kalenderjahr
     const priceDataByYear = {};
     priceData.forEach((p) => {
       const y = p.date.getUTCFullYear();
       if (!priceDataByYear[y]) priceDataByYear[y] = [];
       priceDataByYear[y].push(p);
     });
-    // Sortiere innerhalb jedes Jahres chronologisch
     Object.keys(priceDataByYear).forEach((yearStr) => {
       priceDataByYear[yearStr].sort((a, b) => a.date - b.date);
     });
     const allYears = Object.keys(priceDataByYear)
       .map((y) => parseInt(y, 10))
       .sort((a, b) => a - b);
-    console.log(`✅ Verfügbare Jahre im Datensatz für ${symbol}:`, allYears);
 
-    // 2.f) Ermittle für jedes Jahr den ersten Schlusskurs
     const firstCloseByYear = {};
     Object.keys(priceDataByYear).forEach((yearStr) => {
       const year = parseInt(yearStr, 10);
@@ -349,7 +301,6 @@ app.get('/api/seasonality', async (req, res) => {
       }
     });
 
-    // 2.g) Baue dailyReturns: { year, trading_day_index, pctReturn }
     const dailyReturns = [];
     Object.keys(priceDataByYear).forEach((yearStr) => {
       const year = parseInt(yearStr, 10);
@@ -366,41 +317,22 @@ app.get('/api/seasonality', async (req, res) => {
         });
       });
     });
-    console.log(
-      `ℹ️ dailyReturns enthält ${dailyReturns.length} Einträge über alle Jahre.`
-    );
 
-    // 2.h) Jetzt berechne Saisonalität für N = 5, 10, 15, 20 Jahre
     const seasons = [5, 10, 15, 20];
     const seasonalityResults = [];
 
     seasons.forEach((N) => {
-      if (allYears.length < N) {
-        console.log(
-          `⚠️ Nur ${allYears.length} Jahre vorhanden, weniger als N=${N}. Überspringe N=${N}.`
-        );
-        return;
-      }
+      if (allYears.length < N) return;
       const yearsForN = allYears.slice(allYears.length - N);
-      console.log(`🔍 Berechne für die letzten ${N} Jahre:`, yearsForN);
 
       const subsetForN = dailyReturns.filter((e) => yearsForN.includes(e.year));
-      console.log(`   → subsetForN (N=${N}) hat ${subsetForN.length} Einträge`);
-
-      // Gruppiere subsetForN nach trading_day_index
       const byTradingDay = {};
       subsetForN.forEach((e) => {
         const idx = e.trading_day_index;
         if (!byTradingDay[idx]) byTradingDay[idx] = [];
         byTradingDay[idx].push(e.pctReturn);
       });
-      console.log(
-        `   → byTradingDay Keys (N=${N}):`,
-        Object.keys(byTradingDay).slice(0, 10),
-        '(…)'
-      );
 
-      // Für jeden trading_day_index: Mittelwert aller pctReturn
       Object.keys(byTradingDay).forEach((idxStr) => {
         const idx = parseInt(idxStr, 10);
         const arr = byTradingDay[idx];
@@ -416,14 +348,93 @@ app.get('/api/seasonality', async (req, res) => {
       });
     });
 
-    console.log(
-      `✅ seasonalityResults befüllt mit ${seasonalityResults.length} Einträgen insgesamt.`
-    );
-    return res.json(seasonalityResults);
+    res.json(seasonalityResults);
   } catch (err) {
-    console.error('❌ Fehler beim Berechnen der Seasonality:', err);
-    return res.status(500).json({ error: 'Serverfehler.' });
+    console.error('Fehler beim Berechnen der Seasonality:', err);
+    res.status(500).json({ error: 'Serverfehler.' });
   }
+});
+
+app.post('/api/charts', async (req, res) => {
+  const { symbol_timeframe } = req.body; // Anpassung für Symbol_Timeframe
+  if (!symbol_timeframe)
+    return res.status(400).json({ message: 'Symbol_Timeframe erforderlich' });
+  const chartId = crypto.randomUUID();
+  await pool.execute(
+    'INSERT INTO charts (id, symbol_timeframe, created_at) VALUES (?, ?, NOW())',
+    [chartId, symbol_timeframe]
+  );
+  res.json({ id: chartId });
+});
+
+app.put('/api/charts/:chartId', async (req, res) => {
+  const { chartId } = req.params;
+  const { drawingTools } = req.body;
+  if (!drawingTools)
+    return res.status(400).json({ message: 'DrawingTools erforderlich' });
+  await pool.execute('DELETE FROM drawing_tools WHERE chart_id = ?', [chartId]);
+  const insertQuery =
+    'INSERT INTO drawing_tools (id, chart_id, type, points, options, created_at) VALUES (?, ?, ?, ?, ?, NOW())';
+  for (const tool of drawingTools) {
+    await pool.execute(insertQuery, [
+      tool.id,
+      chartId,
+      tool.type,
+      JSON.stringify(tool.points),
+      JSON.stringify(tool.options),
+    ]);
+  }
+  res.sendStatus(200);
+});
+
+app.get('/api/charts/:chartId', async (req, res) => {
+  const { chartId } = req.params;
+  const [charts] = await pool.execute('SELECT * FROM charts WHERE id = ?', [
+    chartId,
+  ]);
+  if (!charts.length)
+    return res.status(404).json({ message: 'Chart nicht gefunden' });
+  const [tools] = await pool.execute(
+    'SELECT * FROM drawing_tools WHERE chart_id = ?',
+    [chartId]
+  );
+  res.json({
+    id: charts[0].id,
+    symbol_timeframe: charts[0].symbol_timeframe, // Anpassung für Symbol_Timeframe
+    createdAt: new Date(charts[0].created_at).getTime(),
+    drawingTools: tools.map((tool) => ({
+      id: tool.id,
+      type: tool.type,
+      points: JSON.parse(tool.points),
+      options: JSON.parse(tool.options),
+      createdAt: new Date(tool.created_at).getTime(),
+    })),
+  });
+});
+
+app.get('/api/charts', async (req, res) => {
+  const [charts] = await pool.execute('SELECT * FROM charts');
+  const chartData = await Promise.all(
+    charts.map(async (chart) => {
+      const [tools] = await pool.execute(
+        'SELECT * FROM drawing_tools WHERE chart_id = ?',
+        [chart.id]
+      );
+      return {
+        id: chart.id,
+        symbol_timeframe: chart.symbol_timeframe, // Anpassung für Symbol_Timeframe
+        createdAt: new Date(chart.created_at).getTime(),
+        drawingTools: tools.map((tool) => ({
+          id: tool.id,
+          type: tool.type,
+          points: JSON.parse(tool.points),
+          options: JSON.parse(tool.options),
+          createdAt: new Date(tool.created_at).getTime(),
+        })),
+      };
+    })
+  );
+  res.json(chartData);
 });
 
 app.listen(3001, () => console.log('Server auf Port 3001'));
