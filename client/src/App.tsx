@@ -7,7 +7,7 @@ function App() {
   const [updateTrigger, setUpdateTrigger] = useState(0);
 
   const handleChartUpdate = (marketType: string, symbol: string, timeframe: string) => {
-    console.log(`Chart Update triggered: ${marketType}, ${symbol}, ${timeframe}`);
+    console.log(`Chart Update triggered ->: ${marketType}, ${symbol}, ${timeframe}`);
     setUpdateTrigger((prev) => prev + 1); // Trigger für Re-Render
   };
 
