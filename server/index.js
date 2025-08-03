@@ -32,7 +32,7 @@ async function checkTableExists(connection, tableName) {
   }
 }
 
-// Initialisiere Tabellen für charts und drawing_tools
+/*/ Initialisiere Tabellen für charts und drawing_tools
 (async () => {
   try {
     const connection = await pool.getConnection();
@@ -57,7 +57,7 @@ async function checkTableExists(connection, tableName) {
   } catch (error) {
     console.error('Fehler beim Erstellen der Tabellen:', error);
   }
-})();
+})();*/
 
 app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
   const { marketType, symbol } = req.params;
@@ -211,11 +211,9 @@ app.get('/api/market-data/:marketType/:symbol', async (req, res) => {
 app.get('/api/raw-history', async (req, res) => {
   const symbolParam = req.query.symbol;
   if (!symbolParam) {
-    return res
-      .status(400)
-      .json({
-        error: 'Bitte Symbol als Query-Parameter angeben, z.B. ?symbol=EURUSD',
-      });
+    return res.status(400).json({
+      error: 'Bitte Symbol als Query-Parameter angeben, z.B. ?symbol=EURUSD',
+    });
   }
 
   const symbol = sanitizeSymbol(symbolParam);
@@ -393,7 +391,7 @@ app.get('/api/charts/:chartId', async (req, res) => {
     chartId,
   ]);
   if (!charts.length)
-    return res.status(404).json({ message: 'Chart nicht gefunden' });
+    return res.status(404).json({ message: 'Chart nicht gefunden , mit ID' });
   const [tools] = await pool.execute(
     'SELECT * FROM drawing_tools WHERE chart_id = ?',
     [chartId]
